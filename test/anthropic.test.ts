@@ -34,7 +34,7 @@ test("maps text deltas, usage and done", async () => {
       ),
     ),
   );
-  const evs = await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "k" }, userMessage: "hi" });
+  const evs = await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "k" }, messages: [{ role: "user", content: "hi" }] });
   expect(evs).toContainEqual({ type: "text", text: "Hallo" });
   expect(evs).toContainEqual({ type: "usage", outputTokens: 12 });
   expect(evs.at(-1)).toEqual({ type: "done", stopReason: "end_turn" });
@@ -49,7 +49,7 @@ test("emits refusal when stop_reason is refusal", async () => {
       ),
     ),
   );
-  const evs = await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "k" }, userMessage: "x" });
+  const evs = await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "k" }, messages: [{ role: "user", content: "x" }] });
   expect(evs.some((e) => e.type === "refusal")).toBe(true);
 });
 
@@ -59,7 +59,7 @@ test("throws AnthropicError with mapped UiError on 401", async () => {
     vi.fn(async () => new Response('{"error":{"type":"authentication_error"}}', { status: 401 })),
   );
   await expect(
-    drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "bad" }, userMessage: "x" }),
+    drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "bad" }, messages: [{ role: "user", content: "x" }] }),
   ).rejects.toMatchObject({ uiError: { code: "auth" } });
 });
 
@@ -68,7 +68,7 @@ test("sends correct headers and body shape", async () => {
     sseResponse('data: {"type":"message_stop"}\n\n'),
   );
   vi.stubGlobal("fetch", spy);
-  await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "secret" }, userMessage: "hi" });
+  await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "secret" }, messages: [{ role: "user", content: "hi" }] });
   const init = spy.mock.calls[0][1]!;
   const headers = init.headers as Record<string, string>;
   expect(headers["x-api-key"]).toBe("secret");
@@ -78,6 +78,7 @@ test("sends correct headers and body shape", async () => {
   expect(body.model).toBe("claude-opus-4-8");
   expect(body.stream).toBe(true);
   expect(body.thinking).toEqual({ type: "adaptive" });
+  expect(body.messages).toEqual([{ role: "user", content: "hi" }]);
   expect(body).not.toHaveProperty("temperature");
   expect(body).not.toHaveProperty("budget_tokens");
 });

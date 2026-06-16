@@ -3,10 +3,9 @@ import type { ExtractionResult, UiError } from "../lib/types";
 export type State =
   | { name: "empty"; needsKey: boolean }
   | { name: "extracting" }
-  | { name: "extracted"; extraction: ExtractionResult }
   | { name: "thinking"; extraction: ExtractionResult }
-  | { name: "streaming"; extraction: ExtractionResult; markdown: string }
-  | { name: "done"; extraction: ExtractionResult; markdown: string; outputTokens?: number }
+  | { name: "result"; extraction: ExtractionResult } // streaming + done; the live
+  // analysis text and Q&A thread are managed incrementally outside the store.
   | { name: "error"; error: UiError; extraction?: ExtractionResult };
 
 export type Listener = (s: State) => void;

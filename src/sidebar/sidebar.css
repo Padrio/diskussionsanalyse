@@ -228,9 +228,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   padding: 15px 17px;
   margin-bottom: 12px;
   box-shadow: var(--shadow);
-  animation: rise 0.4s ease both;
 }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* entrance animation runs once, only on freshly created nodes — never on
+   in-place updates during streaming (that was the flicker bug) */
+.card.enter, .qa.enter { animation: rise 0.4s ease both; }
 .card h2 {
   font-family: var(--font-ui);
   font-size: 11px; font-weight: 700;
@@ -275,6 +277,55 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .card.bias h2 { color: var(--signal); }
 
+/* ── follow-up Q&A ────────────────────────────────────── */
+#qa { margin-top: 2px; }
+.qa { margin-bottom: 12px; }
+.q {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+}
+.card.answer { border-left: 3px solid var(--accent); }
+.card.answer h2 { color: var(--accent); }
+
+#ask {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+#ask-input {
+  flex: 1;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  padding: 9px 11px;
+  resize: vertical;
+  min-height: 40px;
+  line-height: 1.4;
+}
+#ask-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+#ask-input:disabled { opacity: 0.55; }
+#ask-send { white-space: nowrap; }
+#ask-send:disabled { opacity: 0.5; cursor: default; }
+.thinking-inline { margin: 4px 0; }
+
 /* ── action bar (done) ────────────────────────────────── */
 #actions:not(:empty) {
   position: sticky; bottom: 0;
@@ -308,5 +359,5 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card, .scan, .dots i { animation: none; }
+  .card.enter, .qa.enter, .scan, .dots i { animation: none; }
 }

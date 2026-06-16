@@ -11,14 +11,19 @@ export class AnthropicError extends Error {
   }
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface StreamArgs {
   settings: Settings;
-  userMessage: string;
+  messages: ChatMessage[];
   signal?: AbortSignal;
 }
 
 export async function* streamAnalysis(args: StreamArgs): AsyncGenerator<StreamEvent> {
-  const { settings, userMessage, signal } = args;
+  const { settings, messages, signal } = args;
   const res = await fetch(ENDPOINT, {
     method: "POST",
     signal,
@@ -32,7 +37,7 @@ export async function* streamAnalysis(args: StreamArgs): AsyncGenerator<StreamEv
       model: settings.model,
       max_tokens: settings.maxOutputTokens,
       system: settings.systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
+      messages,
       thinking: { type: "adaptive" },
       stream: true,
     }),
