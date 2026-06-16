@@ -10,6 +10,7 @@ export default defineConfig({
       // so it must be declared here to be built into the bundle.
       additionalInputs: ["src/content/extract.ts"],
       webExtConfig: {
+        target: ["firefox-desktop"],
         // start on a thread-heavy page for fast manual testing
         startUrl: ["https://news.ycombinator.com/best"],
       },

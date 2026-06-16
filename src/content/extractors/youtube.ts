@@ -23,17 +23,14 @@ function readYtInitialData(doc: Document): YtData | null {
 function commentsFromData(data: YtData): Comment[] {
   // Fixture/best-effort path. Real continuation parsing is intentionally lenient;
   // the visible-DOM fallback covers what this misses.
-  if (Array.isArray(data.__comments)) {
-    return data.__comments
-      .map((c) => ({
-        author: c.author,
-        text: String(c.text ?? "").trim(),
-        score: c.likes,
-        depth: 0,
-      }))
-      .filter((c): c is Comment => c.text.length > 0);
-  }
-  return [];
+  if (!Array.isArray(data.__comments)) return [];
+  const mapped: Comment[] = data.__comments.map((c) => ({
+    author: c.author,
+    text: String(c.text ?? "").trim(),
+    score: c.likes,
+    depth: 0,
+  }));
+  return mapped.filter((c) => c.text.length > 0);
 }
 
 function commentsFromDom(doc: Document): Comment[] {

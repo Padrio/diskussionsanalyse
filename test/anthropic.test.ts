@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { AnthropicError, streamAnalysis } from "../src/lib/anthropic";
+import { streamAnalysis } from "../src/lib/anthropic";
 import { DEFAULT_SETTINGS } from "../src/lib/storage";
 import type { StreamEvent } from "../src/lib/types";
 
@@ -64,13 +64,16 @@ test("throws AnthropicError with mapped UiError on 401", async () => {
 });
 
 test("sends correct headers and body shape", async () => {
-  const spy = vi.fn(async () => sseResponse('data: {"type":"message_stop"}\n\n'));
+  const spy = vi.fn(async (_url: string, _init?: RequestInit) =>
+    sseResponse('data: {"type":"message_stop"}\n\n'),
+  );
   vi.stubGlobal("fetch", spy);
   await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "secret" }, userMessage: "hi" });
-  const init = spy.mock.calls[0][1] as RequestInit & { headers: Record<string, string> };
-  expect(init.headers["x-api-key"]).toBe("secret");
-  expect(init.headers["anthropic-version"]).toBe("2023-06-01");
-  expect(init.headers["anthropic-dangerous-direct-browser-access"]).toBe("true");
+  const init = spy.mock.calls[0][1]!;
+  const headers = init.headers as Record<string, string>;
+  expect(headers["x-api-key"]).toBe("secret");
+  expect(headers["anthropic-version"]).toBe("2023-06-01");
+  expect(headers["anthropic-dangerous-direct-browser-access"]).toBe("true");
   const body = JSON.parse(init.body as string);
   expect(body.model).toBe("claude-opus-4-8");
   expect(body.stream).toBe(true);
