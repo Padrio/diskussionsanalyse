@@ -3,7 +3,7 @@ import { extractGeneric } from "./extractors/generic";
 import { extractHackerNews } from "./extractors/hackernews";
 import { extractYouTube } from "./extractors/youtube";
 
-export function extractDiscussion(doc: Document, url: string): ExtractionResult {
+export async function extractDiscussion(doc: Document, url: string): Promise<ExtractionResult> {
   let host = "";
   try {
     host = new URL(url).hostname;
