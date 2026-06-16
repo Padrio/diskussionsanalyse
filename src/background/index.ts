@@ -1,5 +1,5 @@
 import browser from "webextension-polyfill";
-import type { ExtractionResult, RuntimeMessage } from "../lib/types";
+import type { ExtractionResult } from "../lib/types";
 
 type Tab = Awaited<ReturnType<typeof browser.tabs.query>>[number];
 
@@ -25,6 +25,15 @@ async function analyze(tab?: Tab): Promise<void> {
 
   // sidebarAction.open() must be called from within the user-gesture handler.
   await browser.sidebarAction.open();
+
+  // Hand off via storage.session (survives event-page unload); the sidebar
+  // reacts through storage.onChanged. Mark "analyzing" so a cold-opened sidebar
+  // shows the reading state while extraction runs.
+  await browser.storage.session.set({
+    analyzing: true,
+    lastExtraction: null,
+    lastExtractionError: null,
+  });
 
   try {
     // 1. Inject the bundled extractor (sets the globalThis factory).
@@ -53,19 +62,16 @@ async function analyze(tab?: Tab): Promise<void> {
       );
     }
 
-    // Hand off via storage.session (survives event-page unload) + a live push.
-    await browser.storage.session.set({ lastExtraction: result });
-    await browser.storage.session.remove("lastExtractionError");
-    const msg: RuntimeMessage = { type: "EXTRACTION_RESULT", payload: result };
-    await browser.runtime.sendMessage(msg).catch(() => {
-      /* sidebar not ready yet — it pulls from storage.session on load */
+    await browser.storage.session.set({
+      lastExtraction: result,
+      lastExtractionError: null,
+      analyzing: false,
     });
   } catch (e) {
-    await browser.storage.session.set({ lastExtractionError: String(e) });
-    await browser.storage.session.remove("lastExtraction");
-    const err: RuntimeMessage = { type: "EXTRACTION_ERROR", payload: String(e) };
-    await browser.runtime.sendMessage(err).catch(() => {
-      /* ignore */
+    await browser.storage.session.set({
+      lastExtractionError: String(e),
+      lastExtraction: null,
+      analyzing: false,
     });
   }
 }
