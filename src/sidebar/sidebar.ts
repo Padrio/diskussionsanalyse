@@ -32,7 +32,6 @@ const OUTPUT_PRICE: Record<string, number> = {
   "claude-haiku-4-5": 5,
 };
 
-const log = (...a: unknown[]): void => console.log("[DA sb]", ...a);
 const DOTS = `<span class="dots"><i></i><i></i><i></i></span>`;
 
 const esc = (s: string): string =>
@@ -317,7 +316,6 @@ async function runAnalysis(extraction: ExtractionResult): Promise<void> {
   lastExtraction = extraction;
   const cfg = await getSettings();
   settings = cfg;
-  log("runAnalysis", extraction.siteType, "hasKey:", Boolean(cfg.apiKey));
   if (!cfg.apiKey) {
     store.set({ name: "empty", needsKey: true });
     return;
@@ -444,7 +442,6 @@ function extractFailed(): void {
 
 browser.runtime.onMessage.addListener((message: unknown) => {
   const m = message as RuntimeMessage;
-  log("onMessage", m.type);
   if (m.type === "EXTRACTION_RESULT") void runAnalysis(m.payload);
   else if (m.type === "EXTRACTION_ERROR") extractFailed();
   else if (m.type === "ANALYZING") store.set({ name: "extracting" });
@@ -469,7 +466,6 @@ async function init(): Promise<void> {
     "lastExtractionError",
     "analyzing",
   ])) as SessionState;
-  log("init", "hasKey:", Boolean(settings.apiKey), "session:", JSON.stringify(Object.keys(sess)));
 
   if (sess.lastExtraction) {
     void runAnalysis(sess.lastExtraction);
