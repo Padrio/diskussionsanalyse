@@ -1,5 +1,5 @@
 import browser from "webextension-polyfill";
-import type { ExtractionResult, Settings } from "../lib/types";
+import type { ExtractionResult, RuntimeMessage, Settings } from "../lib/types";
 import { getSettings } from "../lib/storage";
 import { applyBudget, buildUserMessage } from "../lib/prompt";
 import { AnthropicError, streamAnalysis } from "../lib/anthropic";
@@ -13,6 +13,7 @@ const actionsEl = document.getElementById("actions")!;
 const store = createStore({ name: "empty", needsKey: false });
 let abort: AbortController | null = null;
 let settings: Settings | null = null;
+let lastExtraction: ExtractionResult | null = null;
 
 const OUTPUT_PRICE: Record<string, number> = {
   "claude-opus-4-8": 25,
@@ -186,6 +187,7 @@ function openOptions(): void {
 }
 
 async function runAnalysis(extraction: ExtractionResult): Promise<void> {
+  lastExtraction = extraction;
   const cfg = await getSettings();
   settings = cfg;
   if (!cfg.apiKey) {
@@ -237,24 +239,34 @@ async function runAnalysis(extraction: ExtractionResult): Promise<void> {
   }
 }
 
-// ── handoff: storage.session (written by background) + onChanged ──
+// ── handoff: live runtime messages (primary) + storage.session (cold open) ──
 interface SessionState {
   lastExtraction?: ExtractionResult;
   lastExtractionError?: string | null;
   analyzing?: boolean;
 }
 
+function extractFailed(): void {
+  store.set({
+    name: "error",
+    error: { code: "extract", message: "Seiteninhalt konnte nicht gelesen werden.", retryable: false },
+  });
+}
+
+browser.runtime.onMessage.addListener((message: unknown) => {
+  const m = message as RuntimeMessage;
+  if (m.type === "EXTRACTION_RESULT") void runAnalysis(m.payload);
+  else if (m.type === "EXTRACTION_ERROR") extractFailed();
+  else if (m.type === "ANALYZING") store.set({ name: "extracting" });
+});
+
+// Auto-start once a key is saved while we are waiting with a cached extraction.
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area !== "session") return;
-  if (changes.lastExtraction?.newValue) {
-    void runAnalysis(changes.lastExtraction.newValue as ExtractionResult);
-  } else if (changes.lastExtractionError?.newValue) {
-    store.set({
-      name: "error",
-      error: { code: "extract", message: "Seiteninhalt konnte nicht gelesen werden.", retryable: false },
-    });
-  } else if (changes.analyzing?.newValue === true) {
-    store.set({ name: "extracting" });
+  if (area !== "local" || !changes.settings) return;
+  const next = changes.settings.newValue as Partial<Settings> | undefined;
+  const cur = store.get();
+  if (next?.apiKey && cur.name === "empty" && cur.needsKey && lastExtraction) {
+    void runAnalysis(lastExtraction);
   }
 });
 

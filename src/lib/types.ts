@@ -45,8 +45,8 @@ export interface UiError {
   openOptions?: boolean; // surface "Einstellungen öffnen"
 }
 
-// Background ⇄ sidebar messages
+// Background → sidebar live messages
 export type RuntimeMessage =
+  | { type: "ANALYZING" }
   | { type: "EXTRACTION_RESULT"; payload: ExtractionResult }
-  | { type: "EXTRACTION_ERROR"; payload: string }
-  | { type: "REQUEST_EXTRACTION" };
+  | { type: "EXTRACTION_ERROR"; payload: string };

@@ -1,5 +1,5 @@
 import browser from "webextension-polyfill";
-import type { ExtractionResult } from "../lib/types";
+import type { ExtractionResult, RuntimeMessage } from "../lib/types";
 
 type Tab = Awaited<ReturnType<typeof browser.tabs.query>>[number];
 
@@ -12,6 +12,13 @@ browser.runtime.onInstalled.addListener(() => {
     contexts: ["page", "selection", "link"],
   });
 });
+
+/** Live push to the sidebar (primary channel when it is open). */
+function notify(msg: RuntimeMessage): void {
+  browser.runtime.sendMessage(msg).catch(() => {
+    /* no receiver (sidebar closed) — storage.session covers cold open */
+  });
+}
 
 async function resolveTab(tab?: Tab): Promise<Tab | undefined> {
   if (tab?.id != null) return tab;
@@ -26,18 +33,17 @@ async function analyze(tab?: Tab): Promise<void> {
   // sidebarAction.open() must be called from within the user-gesture handler.
   await browser.sidebarAction.open();
 
-  // Hand off via storage.session (survives event-page unload); the sidebar
-  // reacts through storage.onChanged. Mark "analyzing" so a cold-opened sidebar
-  // shows the reading state while extraction runs.
+  // Handoff: a live runtime message for the open sidebar, plus storage.session
+  // (survives event-page unload) so a freshly opened sidebar can pull on load.
   await browser.storage.session.set({
     analyzing: true,
     lastExtraction: null,
     lastExtractionError: null,
   });
+  notify({ type: "ANALYZING" });
 
   try {
     // 1. Inject the bundled extractor (sets the globalThis factory).
-    //    NOTE: the emitted path is confirmed against dist in Phase 8.
     await browser.scripting.executeScript({
       target: { tabId: target.id },
       files: ["src/content/extract.js"],
@@ -67,12 +73,14 @@ async function analyze(tab?: Tab): Promise<void> {
       lastExtractionError: null,
       analyzing: false,
     });
+    notify({ type: "EXTRACTION_RESULT", payload: result });
   } catch (e) {
     await browser.storage.session.set({
       lastExtractionError: String(e),
       lastExtraction: null,
       analyzing: false,
     });
+    notify({ type: "EXTRACTION_ERROR", payload: String(e) });
   }
 }
 
