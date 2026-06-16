@@ -63,6 +63,9 @@ export async function* streamAnalysis(args: StreamArgs): AsyncGenerator<StreamEv
       } else if (delta.type === "thinking_delta" && delta.thinking) {
         yield { type: "thinking", text: delta.thinking };
       }
+    } else if (type === "message_start") {
+      const u = (ev as { message?: { usage?: { input_tokens?: number } } }).message?.usage;
+      if (u?.input_tokens != null) yield { type: "usage", inputTokens: u.input_tokens };
     } else if (type === "message_delta") {
       const d = ev as { delta?: { stop_reason?: string }; usage?: { output_tokens?: number } };
       if (d.delta?.stop_reason) stopReason = d.delta.stop_reason;

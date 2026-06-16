@@ -3,7 +3,7 @@ import type { ExtractionResult, RuntimeMessage, Settings } from "../lib/types";
 import { getSettings } from "../lib/storage";
 import { applyBudget, buildUserMessage } from "../lib/prompt";
 import { AnthropicError, streamAnalysis, type ChatMessage } from "../lib/anthropic";
-import { renderMarkdown, splitSections } from "./render";
+import { formatUsage, renderMarkdown, splitSections } from "./render";
 import { createStore, type State } from "./state";
 
 const headEl = document.getElementById("head")!;
@@ -25,12 +25,7 @@ let convo: Convo | null = null;
 type Phase = "analyzing" | "answering" | "idle";
 let phase: Phase = "idle";
 let outputTokens = 0;
-
-const OUTPUT_PRICE: Record<string, number> = {
-  "claude-opus-4-8": 25,
-  "claude-sonnet-4-6": 15,
-  "claude-haiku-4-5": 5,
-};
+let inputTokens = 0;
 
 const DOTS = `<span class="dots"><i></i><i></i><i></i></span>`;
 
@@ -173,10 +168,7 @@ function renderResult(): void {
   if (send) send.disabled = busy;
 
   if (phase === "idle") {
-    const cost = outputTokens
-      ? ` · ~$${((outputTokens / 1e6) * (OUTPUT_PRICE[settings?.model ?? ""] ?? 0)).toFixed(4)}`
-      : "";
-    const usage = outputTokens ? `${outputTokens} Output-Tokens${cost}` : "";
+    const usage = formatUsage(inputTokens, outputTokens, settings?.model ?? "");
     actionsEl.innerHTML = `<div class="act-row">
       <button id="btn-copy" class="btn-ghost">Kopieren</button>
       <button id="btn-export" class="btn-ghost">Export .md</button>
@@ -329,6 +321,7 @@ async function runAnalysis(extraction: ExtractionResult): Promise<void> {
   const c: Convo = { extraction: budgeted, userMessage, analysis: "", qa: [] };
   convo = c;
   outputTokens = 0;
+  inputTokens = 0;
   phase = "analyzing";
   store.set({ name: "thinking", extraction: budgeted });
 
@@ -351,7 +344,8 @@ async function runAnalysis(extraction: ExtractionResult): Promise<void> {
         });
         return;
       } else if (ev.type === "usage") {
-        outputTokens += ev.outputTokens;
+        if (ev.outputTokens != null) outputTokens += ev.outputTokens;
+        if (ev.inputTokens != null) inputTokens += ev.inputTokens;
       }
     }
     phase = "idle";
@@ -412,7 +406,8 @@ async function askFollowUp(question: string): Promise<void> {
         c.qa[idx].a = "_Antwort aus Sicherheitsgründen abgelehnt._";
         break;
       } else if (ev.type === "usage") {
-        outputTokens += ev.outputTokens;
+        if (ev.outputTokens != null) outputTokens += ev.outputTokens;
+        if (ev.inputTokens != null) inputTokens += ev.inputTokens;
       }
     }
   } catch (e) {

@@ -33,7 +33,7 @@ export interface Settings {
 export type StreamEvent =
   | { type: "thinking"; text: string }
   | { type: "text"; text: string }
-  | { type: "usage"; outputTokens: number; inputTokens?: number }
+  | { type: "usage"; outputTokens?: number; inputTokens?: number }
   | { type: "refusal"; explanation?: string }
   | { type: "done"; stopReason: string | null };
 

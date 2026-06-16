@@ -40,6 +40,20 @@ test("maps text deltas, usage and done", async () => {
   expect(evs.at(-1)).toEqual({ type: "done", stopReason: "end_turn" });
 });
 
+test("emits input tokens from message_start", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      sseResponse(
+        'data: {"type":"message_start","message":{"usage":{"input_tokens":345,"output_tokens":1}}}\n\n' +
+          'data: {"type":"message_stop"}\n\n',
+      ),
+    ),
+  );
+  const evs = await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "k" }, messages: [{ role: "user", content: "hi" }] });
+  expect(evs).toContainEqual({ type: "usage", inputTokens: 345 });
+});
+
 test("emits refusal when stop_reason is refusal", async () => {
   vi.stubGlobal(
     "fetch",
