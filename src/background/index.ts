@@ -40,7 +40,7 @@ async function analyze(tab?: Tab): Promise<void> {
     //    NOTE: the emitted path is confirmed against dist in Phase 8.
     await browser.scripting.executeScript({
       target: { tabId: target.id },
-      files: ["content/extract.js"],
+      files: ["src/content/extract.js"],
     });
     // 2. Invoke it via `func` — the reliable executeScript return channel.
     const results = await browser.scripting.executeScript({

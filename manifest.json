@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Diskussionsanalyse",
+  "version": "0.1.0",
+  "description": "Analysiert Artikel + Kommentare der aktuellen Seite und streamt eine neutrale deutsche Meinungs- und Bias-Analyse in die Sidebar.",
+  "browser_specific_settings": {
+    "gecko": { "id": "diskussionsanalyse@local", "strict_min_version": "128.0" }
+  },
+  "background": { "scripts": ["src/background/index.ts"] },
+  "sidebar_action": {
+    "default_title": "Diskussionsanalyse",
+    "default_panel": "src/sidebar/sidebar.html",
+    "default_icon": { "16": "icon.svg", "32": "icon.svg", "48": "icon.svg" }
+  },
+  "action": {
+    "default_title": "Diskussion analysieren",
+    "default_icon": { "16": "icon.svg", "32": "icon.svg", "48": "icon.svg" }
+  },
+  "options_ui": { "page": "src/options/options.html", "open_in_tab": true },
+  "permissions": ["activeTab", "scripting", "storage", "menus"],
+  "host_permissions": ["https://api.anthropic.com/*"],
+  "commands": {
+    "analyze-page": {
+      "suggested_key": { "default": "Ctrl+Shift+Y" },
+      "description": "Aktuelle Seite analysieren"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; connect-src https://api.anthropic.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+  }
+}
