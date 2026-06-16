@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./options.css" />
+    <title>Diskussionsanalyse — Einstellungen</title>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="page-head">
+        <h1>Diskussionsanalyse</h1>
+        <p class="tagline">Einstellungen · Meinungsspiegel</p>
+      </header>
+
+      <section class="group">
+        <h2>Zugang</h2>
+        <label class="field">
+          <span class="label">Anthropic API-Key</span>
+          <input id="apiKey" type="password" autocomplete="off" spellcheck="false"
+                 placeholder="sk-ant-…" />
+          <span class="hint">
+            Wird in <code>storage.local</code> gespeichert — vom Addon isoliert, aber
+            <strong>nicht betriebssystemverschlüsselt</strong>. Verlässt das Gerät nur Richtung
+            <code>api.anthropic.com</code> und wird nie protokolliert.
+          </span>
+        </label>
+        <label class="field">
+          <span class="label">Modell</span>
+          <select id="model">
+            <option value="claude-opus-4-8">Claude Opus 4.8 — beste Analysetiefe (Standard)</option>
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 — günstiger bei langen Threads</option>
+            <option value="claude-haiku-4-5">Claude Haiku 4.5 — schnell, kurze Threads</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="group">
+        <h2>Token-Grenzen</h2>
+        <div class="row">
+          <label class="field">
+            <span class="label">Max. Input-Tokens</span>
+            <input id="maxInput" type="number" min="1000" step="1000" />
+            <span class="hint">Kürzungs-Cap für Seiteninhalt.</span>
+          </label>
+          <label class="field">
+            <span class="label">Max. Output-Tokens</span>
+            <input id="maxOutput" type="number" min="500" step="500" />
+            <span class="hint">Länge der Analyse.</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="group">
+        <div class="group-head">
+          <h2>System-Prompt</h2>
+          <button id="resetPrompt" type="button" class="btn-ghost small">Auf Default zurücksetzen</button>
+        </div>
+        <label class="field">
+          <textarea id="systemPrompt" rows="14" spellcheck="false"></textarea>
+          <span class="hint">Die fixe Fachlogik (Diskussions-/Bias-Analyse). Standard = gebündelter Meta-Prompt.</span>
+        </label>
+      </section>
+
+      <section class="group">
+        <h2>Darstellung</h2>
+        <div class="row">
+          <label class="field">
+            <span class="label">Ausgabesprache</span>
+            <input id="language" type="text" placeholder="Deutsch" />
+          </label>
+          <label class="field">
+            <span class="label">Theme</span>
+            <select id="theme">
+              <option value="system">System</option>
+              <option value="light">Hell</option>
+              <option value="dark">Dunkel</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button id="save" class="btn-primary">Speichern</button>
+        <span id="status" class="status" role="status" aria-live="polite"></span>
+      </div>
+    </div>
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>

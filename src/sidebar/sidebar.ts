@@ -23,6 +23,11 @@ const OUTPUT_PRICE: Record<string, number> = {
 const esc = (s: string): string =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
+function applyTheme(theme: Settings["theme"]): void {
+  if (theme === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+}
+
 function badge(t: ExtractionResult["siteType"]): { cls: string; label: string } {
   if (t === "hackernews") return { cls: "hn", label: "Hacker News" };
   if (t === "youtube") return { cls: "youtube", label: "YouTube" };
@@ -256,6 +261,7 @@ browser.storage.onChanged.addListener((changes, area) => {
 async function init(): Promise<void> {
   store.subscribe(render);
   settings = await getSettings();
+  applyTheme(settings.theme);
   const sess = (await browser.storage.session.get([
     "lastExtraction",
     "lastExtractionError",
