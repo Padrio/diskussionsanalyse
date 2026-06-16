@@ -49,6 +49,11 @@
             <span class="hint">Länge der Analyse.</span>
           </label>
         </div>
+        <label class="field">
+          <span class="label">Token-Bestätigung ab</span>
+          <input id="tokenGate" type="number" min="0" step="10000" />
+          <span class="hint">Vor der Analyse Input-Tokens &amp; Kosten bestätigen, wenn die Schätzung diese Zahl übersteigt (0 = nie). Prüft via <code>count_tokens</code> exakt den echten Request.</span>
+        </label>
       </section>
 
       <section class="group">

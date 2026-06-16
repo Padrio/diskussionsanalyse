@@ -4,6 +4,7 @@ export type State =
   | { name: "empty"; needsKey: boolean }
   | { name: "extracting" }
   | { name: "thinking"; extraction: ExtractionResult }
+  | { name: "confirm"; extraction: ExtractionResult; inputTokens: number } // count_tokens gate
   | { name: "result"; extraction: ExtractionResult } // streaming + done; the live
   // analysis text and Q&A thread are managed incrementally outside the store.
   | { name: "error"; error: UiError; extraction?: ExtractionResult };

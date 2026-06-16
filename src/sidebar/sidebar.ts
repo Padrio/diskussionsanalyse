@@ -2,8 +2,9 @@ import browser from "webextension-polyfill";
 import type { ExtractionResult, RuntimeMessage, Settings } from "../lib/types";
 import { getSettings } from "../lib/storage";
 import { applyBudget, buildUserMessage } from "../lib/prompt";
-import { AnthropicError, streamAnalysis, type ChatMessage } from "../lib/anthropic";
-import { formatUsage, renderMarkdown, splitSections } from "./render";
+import { estimateTokens } from "../lib/tokens";
+import { AnthropicError, countTokens, streamAnalysis, type ChatMessage } from "../lib/anthropic";
+import { formatUsage, INPUT_PRICE, renderMarkdown, splitSections } from "./render";
 import { createStore, type State } from "./state";
 
 const headEl = document.getElementById("head")!;
@@ -26,6 +27,7 @@ type Phase = "analyzing" | "answering" | "idle";
 let phase: Phase = "idle";
 let outputTokens = 0;
 let inputTokens = 0;
+let pendingStream: (() => void) | null = null;
 
 const DOTS = `<span class="dots"><i></i><i></i><i></i></span>`;
 
@@ -226,6 +228,25 @@ function render(s: State): void {
         <p class="notice">${s.extraction.stats.commentCount > 0 ? `Artikel + ${s.extraction.stats.commentCount} Kommentare erkannt` : "Beitrag erkannt"}.</p>
         <div class="thinking-row">${DOTS} Claude analysiert …</div>`;
       break;
+    case "confirm": {
+      headEl.innerHTML = headerHtml(s.extraction);
+      const inPrice = INPUT_PRICE[settings?.model ?? ""] ?? 0;
+      const cost = inPrice ? ` · ~$${((s.inputTokens / 1e6) * inPrice).toFixed(4)} Input` : "";
+      appEl.innerHTML = `
+        <div class="center">
+          <div class="errbox">
+            <div class="t">Große Analyse</div>
+            <p>Geschätzter Input: <strong>${s.inputTokens.toLocaleString("de-DE")} Tokens</strong>${cost}. Analyse starten?</p>
+            <div class="act-row">
+              <button id="btn-confirm" class="btn-primary">Analysieren</button>
+              <button id="btn-cancel" class="btn-ghost">Abbrechen</button>
+            </div>
+          </div>
+        </div>`;
+      appEl.querySelector("#btn-confirm")?.addEventListener("click", () => confirmStream());
+      appEl.querySelector("#btn-cancel")?.addEventListener("click", () => cancelStream());
+      break;
+    }
     case "error":
       if (s.extraction) headEl.innerHTML = headerHtml(s.extraction);
       appEl.innerHTML = `
@@ -322,25 +343,49 @@ async function runAnalysis(extraction: ExtractionResult): Promise<void> {
   convo = c;
   outputTokens = 0;
   inputTokens = 0;
+  pendingStream = null;
+
+  // Gate: cheap local estimate first; only spend a count_tokens round-trip when the
+  // input looks large enough to warrant a confirmation (threshold 0 = gate disabled).
+  if (cfg.tokenGateThreshold > 0) {
+    const estimate = estimateTokens(userMessage) + estimateTokens(cfg.systemPrompt);
+    if (estimate >= cfg.tokenGateThreshold) {
+      try {
+        const exact = await countTokens(cfg, [{ role: "user", content: userMessage }], signal);
+        if (signal.aborted) return;
+        phase = "idle";
+        pendingStream = () => void startStream(c, cfg, signal);
+        store.set({ name: "confirm", extraction: budgeted, inputTokens: exact });
+        return;
+      } catch {
+        if (signal.aborted) return;
+        // count_tokens unavailable — degrade gracefully and just analyse.
+      }
+    }
+  }
+  void startStream(c, cfg, signal);
+}
+
+async function startStream(c: Convo, cfg: Settings, signal: AbortSignal): Promise<void> {
   phase = "analyzing";
-  store.set({ name: "thinking", extraction: budgeted });
+  store.set({ name: "thinking", extraction: c.extraction });
 
   try {
     for await (const ev of streamAnalysis({
       settings: cfg,
-      messages: [{ role: "user", content: userMessage }],
+      messages: [{ role: "user", content: c.userMessage }],
       signal,
     })) {
       if (ev.type === "text") {
         c.analysis += ev.text;
-        if (store.get().name !== "result") store.set({ name: "result", extraction: budgeted });
+        if (store.get().name !== "result") store.set({ name: "result", extraction: c.extraction });
         else scheduleFlush();
       } else if (ev.type === "refusal") {
         phase = "idle";
         store.set({
           name: "error",
           error: { code: "refusal", message: "Analyse aus Sicherheitsgründen abgelehnt.", retryable: false },
-          extraction: budgeted,
+          extraction: c.extraction,
         });
         return;
       } else if (ev.type === "usage") {
@@ -360,8 +405,23 @@ async function runAnalysis(extraction: ExtractionResult): Promise<void> {
       e instanceof AnthropicError
         ? e.uiError
         : { code: "network", message: "Verbindung verloren. Erneut versuchen.", retryable: true };
-    store.set({ name: "error", error, extraction: budgeted });
+    store.set({ name: "error", error, extraction: c.extraction });
   }
+}
+
+/** Confirm button on the count_tokens gate → run the deferred stream. */
+function confirmStream(): void {
+  const run = pendingStream;
+  pendingStream = null;
+  run?.();
+}
+
+/** Cancel button on the gate → drop the pending stream and return to start. */
+function cancelStream(): void {
+  pendingStream = null;
+  abort?.abort();
+  phase = "idle";
+  store.set({ name: "empty", needsKey: false });
 }
 
 function conversationMessages(c: Convo): ChatMessage[] {

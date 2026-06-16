@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-4-8",
   maxInputTokens: 150_000,
   maxOutputTokens: 8_000,
+  tokenGateThreshold: 50_000,
   systemPrompt: metaPrompt,
   language: "Deutsch",
   theme: "system",

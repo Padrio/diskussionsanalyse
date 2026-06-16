@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { streamAnalysis } from "../src/lib/anthropic";
+import { countTokens, streamAnalysis } from "../src/lib/anthropic";
 import { DEFAULT_SETTINGS } from "../src/lib/storage";
 import type { StreamEvent } from "../src/lib/types";
 
@@ -75,6 +75,53 @@ test("throws AnthropicError with mapped UiError on 401", async () => {
   await expect(
     drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "bad" }, messages: [{ role: "user", content: "x" }] }),
   ).rejects.toMatchObject({ uiError: { code: "auth" } });
+});
+
+function jsonResponse(body: string, status = 200): Response {
+  return new Response(body, { status, headers: { "content-type": "application/json" } });
+}
+
+test("countTokens returns input_tokens", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => jsonResponse('{"input_tokens":1234}')));
+  const n = await countTokens({ ...DEFAULT_SETTINGS, apiKey: "k" }, [{ role: "user", content: "hi" }]);
+  expect(n).toBe(1234);
+});
+
+test("countTokens maps 401 to AnthropicError", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => jsonResponse('{"error":{"type":"authentication_error"}}', 401)));
+  await expect(
+    countTokens({ ...DEFAULT_SETTINGS, apiKey: "bad" }, [{ role: "user", content: "x" }]),
+  ).rejects.toMatchObject({ uiError: { code: "auth" } });
+});
+
+test("countTokens body mirrors streamAnalysis body minus max_tokens/stream (cross-path)", async () => {
+  const settings = { ...DEFAULT_SETTINGS, apiKey: "k" };
+  const messages = [{ role: "user" as const, content: "hi" }];
+
+  const streamSpy = vi.fn(async (_url: string, _init?: RequestInit) =>
+    sseResponse('data: {"type":"message_stop"}\n\n'),
+  );
+  vi.stubGlobal("fetch", streamSpy);
+  await drain({ settings, messages });
+  const streamBody = JSON.parse(streamSpy.mock.calls[0][1]!.body as string);
+
+  const countSpy = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse('{"input_tokens":1}'));
+  vi.stubGlobal("fetch", countSpy);
+  await countTokens(settings, messages);
+  const countUrl = countSpy.mock.calls[0][0];
+  const countBody = JSON.parse(countSpy.mock.calls[0][1]!.body as string);
+
+  expect(countUrl).toBe("https://api.anthropic.com/v1/messages/count_tokens");
+  expect(countBody).toEqual({
+    model: streamBody.model,
+    system: streamBody.system,
+    messages: streamBody.messages,
+    thinking: streamBody.thinking,
+  });
+  expect(countBody).not.toHaveProperty("max_tokens");
+  expect(countBody).not.toHaveProperty("stream");
+  expect(streamBody.max_tokens).toBe(settings.maxOutputTokens);
+  expect(streamBody.stream).toBe(true);
 });
 
 test("sends correct headers and body shape", async () => {

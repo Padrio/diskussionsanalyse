@@ -25,6 +25,7 @@ export interface Settings {
   model: ModelId;
   maxInputTokens: number; // truncation cap
   maxOutputTokens: number; // Anthropic max_tokens
+  tokenGateThreshold: number; // count_tokens-Bestätigung ab dieser geschätzten Input-Token-Zahl (0 = nie)
   systemPrompt: string; // default = bundled meta-prompt
   language: string; // hint only; default "Deutsch"
   theme: Theme;

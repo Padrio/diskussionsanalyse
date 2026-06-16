@@ -3,6 +3,7 @@ import { mapHttpError } from "./errors";
 import { parseSSE } from "./sse";
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
+const COUNT_ENDPOINT = `${ENDPOINT}/count_tokens`;
 
 export class AnthropicError extends Error {
   constructor(public uiError: UiError) {
@@ -22,36 +23,51 @@ export interface StreamArgs {
   signal?: AbortSignal;
 }
 
+function authHeaders(settings: Settings): Record<string, string> {
+  return {
+    "content-type": "application/json",
+    "x-api-key": settings.apiKey,
+    "anthropic-version": "2023-06-01",
+    "anthropic-dangerous-direct-browser-access": "true",
+  };
+}
+
+/** Single source for the request body shared by streamAnalysis and countTokens.
+ *  Both paths MUST send identical model/system/messages/thinking — the count_tokens
+ *  preview only mirrors the real call if it is built here (cross-path consistency). */
+function messagesBody(settings: Settings, messages: ChatMessage[]) {
+  return {
+    model: settings.model,
+    system: settings.systemPrompt,
+    messages,
+    thinking: { type: "adaptive" as const },
+  };
+}
+
+async function toAnthropicError(res: Response): Promise<AnthropicError> {
+  let errType: string | undefined;
+  try {
+    errType = ((await res.json()) as { error?: { type?: string } })?.error?.type;
+  } catch {
+    /* ignore non-JSON error bodies */
+  }
+  return new AnthropicError(mapHttpError(res.status, res.headers.get("retry-after"), errType));
+}
+
 export async function* streamAnalysis(args: StreamArgs): AsyncGenerator<StreamEvent> {
   const { settings, messages, signal } = args;
   const res = await fetch(ENDPOINT, {
     method: "POST",
     signal,
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": settings.apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
+    headers: authHeaders(settings),
     body: JSON.stringify({
-      model: settings.model,
+      ...messagesBody(settings, messages),
       max_tokens: settings.maxOutputTokens,
-      system: settings.systemPrompt,
-      messages,
-      thinking: { type: "adaptive" },
       stream: true,
     }),
   });
 
-  if (!res.ok || !res.body) {
-    let errType: string | undefined;
-    try {
-      errType = ((await res.json()) as { error?: { type?: string } })?.error?.type;
-    } catch {
-      /* ignore non-JSON error bodies */
-    }
-    throw new AnthropicError(mapHttpError(res.status, res.headers.get("retry-after"), errType));
-  }
+  if (!res.ok || !res.body) throw await toAnthropicError(res);
 
   let stopReason: string | null = null;
   for await (const ev of parseSSE(res.body)) {
@@ -79,4 +95,22 @@ export async function* streamAnalysis(args: StreamArgs): AsyncGenerator<StreamEv
     }
   }
   yield { type: "done", stopReason };
+}
+
+/** Preview the input-token count for the exact request streamAnalysis would send.
+ *  Mirrors messagesBody() (model/system/messages/thinking); no max_tokens/stream. */
+export async function countTokens(
+  settings: Settings,
+  messages: ChatMessage[],
+  signal?: AbortSignal,
+): Promise<number> {
+  const res = await fetch(COUNT_ENDPOINT, {
+    method: "POST",
+    signal,
+    headers: authHeaders(settings),
+    body: JSON.stringify(messagesBody(settings, messages)),
+  });
+  if (!res.ok) throw await toAnthropicError(res);
+  const data = (await res.json()) as { input_tokens?: number };
+  return data.input_tokens ?? 0;
 }
