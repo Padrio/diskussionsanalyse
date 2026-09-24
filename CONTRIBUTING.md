@@ -10,13 +10,14 @@ Danke für dein Interesse an Diskussionsanalyse. Fehlerberichte und kleine, klar
 
 ```bash
 npm ci
+npm audit --omit=dev
 npx tsc --noEmit
 npm test
 npm run build
 npm run lint:ext
 ```
 
-Der Extension-Linter meldet bekannte `innerHTML`-Warnungen; **0 Fehler** ist das erforderliche Ergebnis.
+Der Extension-Linter meldet bekannte Warnungen zu `innerHTML` und künftigen Datenschutzangaben im Manifest; **0 Fehler** ist das erforderliche Ergebnis.
 
 ## Architektur
 

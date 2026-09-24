@@ -70,6 +70,7 @@ Kosten und Output-Tokens sind **Schätzungen**, keine Abrechnungsgarantie. Der O
 ```bash
 npm run dev          # Vite-Entwicklungsmodus
 npm test             # Unit-Tests
+npm audit --omit=dev # Laufzeitabhängigkeiten prüfen
 npx tsc --noEmit     # TypeScript-Prüfung
 npm run build        # Firefox-Bundle nach dist/
 npm run lint:ext     # web-ext-Prüfung des Bundles

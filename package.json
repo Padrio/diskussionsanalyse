@@ -20,11 +20,11 @@
     "vite": "^6.0.0",
     "vite-plugin-web-extension": "^4.4.0",
     "vitest": "^2.1.0",
-    "web-ext": "^8.3.0"
+    "web-ext": "^10.7.0"
   },
   "dependencies": {
-    "@mozilla/readability": "^0.5.0",
-    "dompurify": "^3.1.7",
+    "@mozilla/readability": "^0.6.0",
+    "dompurify": "^3.4.16",
     "idb": "^8.0.3",
     "marked": "^14.1.0",
     "turndown": "^7.2.0",
