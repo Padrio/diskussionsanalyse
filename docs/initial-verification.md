@@ -1,5 +1,7 @@
 # Verifizierung — Diskussionsanalyse v1
 
+> Historische Prüfnachweise vom Juni 2026. Aktuelle Prüfungen stehen in der [CI](../.github/workflows/ci.yml) und im [README](../README.md).
+
 Stand: 2026-06-16. Belege statt Behauptungen (verification-before-completion).
 
 ## Automatisch verifiziert

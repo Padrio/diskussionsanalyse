@@ -3,3 +3,12 @@ dist/
 *.log
 .DS_Store
 web-ext-artifacts/
+.playwright-mcp/
+.codebase-memory/
+.env
+.env.*
+!.env.example
+.npmrc
+*.pem
+*.p12
+*.pfx

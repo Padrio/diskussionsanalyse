@@ -1,5 +1,7 @@
 # Konzept: Firefox-Addon „Diskussionsanalyse"
 
+> Historischer Entwurf vom Juni 2026. Modelle, Ablauf und Funktionsumfang haben sich seitdem geändert. Für den aktuellen Stand gelten [README](../README.md) und Quellcode.
+
 > **Working Title:** Diskussionsanalyse (Meinungsspiegel)
 > **Stand:** 2026-06-16
 > **Status:** Design abgenommen, bereit für Implementierungs-Plan + Umsetzung in frischer Session.

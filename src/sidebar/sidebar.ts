@@ -281,7 +281,7 @@ function render(s: State): void {
                  <p class="sub">Es ist noch kein API-Key hinterlegt.</p>`
               : ""
           }
-          <p class="privacy">${EYE_SVG_SMALL} Seiteninhalt wird zur Analyse an Anthropic gesendet.</p>
+          <p class="privacy">${EYE_SVG_SMALL} Für die Tokenzählung und Analyse wird Seiteninhalt an Anthropic gesendet.</p>
         </div>`;
       appEl.querySelector("#btn-options")?.addEventListener("click", openOptions);
       break;
@@ -304,9 +304,9 @@ function render(s: State): void {
       headEl.innerHTML = headerHtml(x, p.settings.model);
       appEl.innerHTML = `
         <section class="preview">
-          <p class="preview-kicker">Vor dem API-Aufruf</p>
+          <p class="preview-kicker">Vor der Analyse</p>
           <h2>${p.kind === "analysis" ? "Analyse prüfen" : "Rückfrage prüfen"}</h2>
-          <p class="preview-intro">Diese Angaben beziehen sich auf den Request, der nach deiner Bestätigung gesendet wird.</p>
+          <p class="preview-intro">${p.tokenSource === "api" ? "Für die API-Tokenzählung wurde dieser Inhalt bereits an Anthropic gesendet." : "Die API-Tokenzählung ist fehlgeschlagen. Dabei können bereits Inhalte an Anthropic übertragen worden sein; die Tokenzahl ist lokal geschätzt."} Die kostenpflichtige Analyse startet erst nach deiner Bestätigung.</p>
           <div class="preview-block">
             <h3>Umfang</h3>
             <dl>

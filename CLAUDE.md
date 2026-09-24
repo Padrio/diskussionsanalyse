@@ -2,13 +2,13 @@
 
 Firefox-Addon (MV3): Seite extrahieren → Meta-Prompt → Claude-API → gestreamte deutsche Diskussions-/Bias-Analyse in der Sidebar, plus Rückfragen-Thread. Direkter Browser→Anthropic-Call, kein Backend. Persönlicher Gebrauch, temporär geladen.
 
-**Vor inhaltlicher Arbeit lesen:** `KONZEPT.md` (abgenommenes Design), `meta-prompt-diskussionsanalyse.md` (fixe Fachlogik), `README.md`.
+**Vor inhaltlicher Arbeit lesen:** `README.md`, `meta-prompt-diskussionsanalyse.md`. Der ursprüngliche Entwurf liegt als historisches Dokument unter `docs/initial-concept.md`.
 
 ## Befehle
 
 ```bash
 npm install
-npm run dev        # Vite-Dev + Firefox via web-ext (HMR)
+npm run dev        # Vite-Dev-Modus
 npm test           # Vitest (immer grün halten)
 npx tsc --noEmit   # strikter Typecheck (Gate vor Commit)
 npm run build      # → dist/
@@ -55,7 +55,7 @@ TypeScript (strict, `esModuleInterop`) · Vite + `vite-plugin-web-extension` (`b
 
 ## Commits
 
-- **Niemals** `Co-Authored-By: Claude …` (auch global vorgegeben). Identität `Pascal Krason <3200139+Padrio@users.noreply.github.com>`. Lokal committen; Push nur auf Aufforderung. Conventional-Commit-Präfixe (`feat:`/`fix:`/`chore:`/`test:`/`docs:`).
+- Lokal committen; Push nur auf Aufforderung. Conventional-Commit-Präfixe (`feat:`/`fix:`/`chore:`/`test:`/`docs:`). Keine privaten E-Mail-Adressen in Projektdateien aufnehmen.
 
 ## Bekannte Stolperfallen (gelernt)
 
