@@ -1,6 +1,6 @@
 # Beitragen
 
-Danke für dein Interesse an Diskussionsanalyse. Fehlerberichte und kleine, klar abgegrenzte Verbesserungen sind willkommen.
+Danke für dein Interesse an Diskussionsanalyse. Fehlerberichte und kleine, klar abgegrenzte Verbesserungen sind willkommen. Verwende die Node-Version aus `.nvmrc`.
 
 ## Vor einem Pull Request
 

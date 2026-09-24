@@ -32,7 +32,7 @@ Spezielle Extraktoren gibt es für **Hacker News** und **YouTube**. Andere Seite
 
 ## Schnellstart
 
-**Voraussetzungen:** Firefox 128 oder neuer, Node.js 20 oder neuer und ein eigener Anthropic-API-Key.
+**Voraussetzungen:** Firefox 128 oder neuer, Node.js 22.22.2 (siehe `.nvmrc`; alternativ 24.15+ oder 26+) und ein eigener Anthropic-API-Key.
 
 ```bash
 git clone https://github.com/Padrio/diskussionsanalyse.git
