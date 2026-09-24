@@ -4,6 +4,20 @@ import type { ExtractionResult, RuntimeMessage } from "../lib/types";
 type Tab = Awaited<ReturnType<typeof browser.tabs.query>>[number];
 
 const MENU_ID = "diskussionsanalyse-analyze";
+const latestJob = new Map<number, string>();
+const jobWrites = new Map<number, Promise<void>>();
+
+async function saveJob(windowId: number, jobId: string, state: object): Promise<boolean> {
+  const previous = jobWrites.get(windowId) ?? Promise.resolve();
+  const next = previous.catch(() => {}).then(async () => {
+    if (latestJob.get(windowId) === jobId) {
+      await browser.storage.session.set({ [`analysisJob_${windowId}`]: { jobId, ...state } });
+    }
+  });
+  jobWrites.set(windowId, next);
+  await next;
+  return latestJob.get(windowId) === jobId;
+}
 
 browser.runtime.onInstalled.addListener(() => {
   browser.menus.create({
@@ -36,18 +50,18 @@ async function resolveTab(tab?: Tab): Promise<Tab | undefined> {
 }
 
 async function analyze(tab?: Tab): Promise<void> {
+  let windowId: number | undefined;
+  let jobId: string | undefined;
   try {
     const target = await resolveTab(tab);
-    if (target?.id == null) {
+    if (target?.id == null || target.windowId == null) {
       return;
     }
-
-    await browser.storage.session.set({
-      analyzing: true,
-      lastExtraction: null,
-      lastExtractionError: null,
-    });
-    notify({ type: "ANALYZING" });
+    windowId = target.windowId;
+    jobId = crypto.randomUUID();
+    latestJob.set(windowId, jobId);
+    if (!await saveJob(windowId, jobId, { status: "extracting" })) return;
+    notify({ type: "ANALYZING", windowId, jobId });
 
     await browser.scripting.executeScript({
       target: { tabId: target.id },
@@ -73,20 +87,14 @@ async function analyze(tab?: Tab): Promise<void> {
       );
     }
 
-    await browser.storage.session.set({
-      lastExtraction: result,
-      lastExtractionError: null,
-      analyzing: false,
-    });
-    notify({ type: "EXTRACTION_RESULT", payload: result });
+    if (latestJob.get(windowId) !== jobId) return;
+    if (!await saveJob(windowId, jobId, { status: "ready", extraction: result })) return;
+    notify({ type: "EXTRACTION_RESULT", payload: result, windowId, jobId });
   } catch (e) {
     console.error("Analyse-Fehler:", String(e));
-    await browser.storage.session.set({
-      lastExtractionError: String(e),
-      lastExtraction: null,
-      analyzing: false,
-    });
-    notify({ type: "EXTRACTION_ERROR", payload: String(e) });
+    if (windowId == null || !jobId || latestJob.get(windowId) !== jobId) return;
+    if (!await saveJob(windowId, jobId, { status: "error", error: String(e) })) return;
+    notify({ type: "EXTRACTION_ERROR", payload: String(e), windowId, jobId });
   }
 }
 

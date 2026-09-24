@@ -1,15 +1,8 @@
 import { DEFAULT_SETTINGS, getSettings, setSettings } from "../lib/storage";
 import type { ModelId, Theme } from "../lib/types";
+import { MODEL_CATALOG } from "../lib/models";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
-
-/** Gate threshold: empty falls back to default; 0 is valid ("never gate"). */
-const parseGate = (v: string): number => {
-  const t = v.trim();
-  if (t === "") return DEFAULT_SETTINGS.tokenGateThreshold;
-  const n = Number(t);
-  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_SETTINGS.tokenGateThreshold;
-};
 
 function applyTheme(theme: Theme): void {
   if (theme === "system") delete document.documentElement.dataset.theme;
@@ -20,10 +13,23 @@ async function load(): Promise<void> {
   const s = await getSettings();
   applyTheme(s.theme);
   $<HTMLInputElement>("apiKey").value = s.apiKey;
-  $<HTMLSelectElement>("model").value = s.model;
+  const select = $<HTMLSelectElement>("model");
+  select.replaceChildren();
+  for (const [group, label] of [["current", "Aktuelle Modelle"], ["older", "Ältere Modelle"]] as const) {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = label;
+    for (const [id, model] of Object.entries(MODEL_CATALOG)) {
+      if (model.group !== group) continue;
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = model.label;
+      optgroup.append(option);
+    }
+    select.append(optgroup);
+  }
+  select.value = s.model;
   $<HTMLInputElement>("maxInput").value = String(s.maxInputTokens);
   $<HTMLInputElement>("maxOutput").value = String(s.maxOutputTokens);
-  $<HTMLInputElement>("tokenGate").value = String(s.tokenGateThreshold);
   $<HTMLTextAreaElement>("systemPrompt").value = s.systemPrompt;
   $<HTMLInputElement>("language").value = s.language;
   $<HTMLSelectElement>("theme").value = s.theme;
@@ -37,7 +43,6 @@ async function save(): Promise<void> {
     maxInputTokens: Number($<HTMLInputElement>("maxInput").value) || DEFAULT_SETTINGS.maxInputTokens,
     maxOutputTokens:
       Number($<HTMLInputElement>("maxOutput").value) || DEFAULT_SETTINGS.maxOutputTokens,
-    tokenGateThreshold: parseGate($<HTMLInputElement>("tokenGate").value),
     systemPrompt: $<HTMLTextAreaElement>("systemPrompt").value,
     language: $<HTMLInputElement>("language").value.trim() || "Deutsch",
     theme,

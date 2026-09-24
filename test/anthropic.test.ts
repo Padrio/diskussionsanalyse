@@ -51,7 +51,7 @@ test("emits input tokens from message_start", async () => {
     ),
   );
   const evs = await drain({ settings: { ...DEFAULT_SETTINGS, apiKey: "k" }, messages: [{ role: "user", content: "hi" }] });
-  expect(evs).toContainEqual({ type: "usage", inputTokens: 345 });
+  expect(evs).toContainEqual({ type: "usage", inputTokens: 345, outputTokens: 1 });
 });
 
 test("emits refusal when stop_reason is refusal", async () => {
@@ -136,10 +136,30 @@ test("sends correct headers and body shape", async () => {
   expect(headers["anthropic-version"]).toBe("2023-06-01");
   expect(headers["anthropic-dangerous-direct-browser-access"]).toBe("true");
   const body = JSON.parse(init.body as string);
-  expect(body.model).toBe("claude-opus-4-8");
+  expect(body.model).toBe("claude-opus-5-5");
   expect(body.stream).toBe(true);
   expect(body.thinking).toEqual({ type: "adaptive" });
   expect(body.messages).toEqual([{ role: "user", content: "hi" }]);
   expect(body).not.toHaveProperty("temperature");
   expect(body).not.toHaveProperty("budget_tokens");
+});
+
+test("Haiku requests omit unsupported adaptive thinking in both API paths", async () => {
+  const settings = { ...DEFAULT_SETTINGS, model: "claude-haiku-4-5" as const };
+  const messages = [{ role: "user" as const, content: "hi" }];
+  const spy = vi.fn(async (url: string, _init?: RequestInit) =>
+    url.endsWith("/count_tokens")
+      ? jsonResponse('{"input_tokens":1}')
+      : sseResponse('data: {"type":"message_stop"}\n\n'),
+  );
+  vi.stubGlobal("fetch", spy);
+
+  await drain({ settings, messages });
+  await countTokens(settings, messages);
+
+  for (const [, init] of spy.mock.calls) {
+    const body = JSON.parse(init!.body as string);
+    expect(body.model).toBe("claude-haiku-4-5");
+    expect(body).not.toHaveProperty("thinking");
+  }
 });

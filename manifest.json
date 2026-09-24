@@ -17,7 +17,7 @@
     "default_icon": { "16": "icon.svg", "32": "icon.svg", "48": "icon.svg" }
   },
   "options_ui": { "page": "src/options/options.html", "open_in_tab": true },
-  "permissions": ["activeTab", "scripting", "storage", "menus"],
+  "permissions": ["activeTab", "scripting", "storage", "unlimitedStorage", "menus"],
   "host_permissions": ["https://api.anthropic.com/*"],
   "commands": {
     "analyze-page": {

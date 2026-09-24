@@ -10,10 +10,11 @@ Ein Firefox-Addon (Manifest V3), das den Inhalt der aktuellen Seite — Artikel 
 
 1. Du löst die Analyse auf einer beliebigen Seite aus (Toolbar-Aktion, Kontextmenü oder `Strg+Shift+Y`).
 2. Der Seiteninhalt wird on-demand extrahiert (Readability + Kommentar-Heuristik; getunte Extraktoren für Hacker News & YouTube).
-3. Die Sidebar streamt eine deutsche Analyse in fünf Abschnitten:
+3. Eine Vorschau zeigt Kommentarabdeckung, Input-Tokens, Output-Szenarien und geschätzte Kosten. Erst nach Bestätigung startet die API-Analyse.
+4. Die Sidebar streamt eine deutsche Analyse in fünf Abschnitten:
    **Kurzüberblick · Hauptthemen · Meinungsbild · Bemerkenswertes · Bias & Tendenz**
    (das „Bias & Tendenz"-Panel ist die Kernfunktion und visuell hervorgehoben).
-4. Danach kannst du **Rückfragen** stellen — die Frage geht zusammen mit dem Original-Inhalt und der bisherigen Analyse an Claude (Multi-Turn).
+5. Danach kannst du **Rückfragen** stellen. Auch sie erhalten vor dem API-Aufruf eine Kostenvorschau.
 
 Die fachliche Logik steckt im Meta-Prompt (`meta-prompt-diskussionsanalyse.md`): Claude bleibt in der eigenen Stimme neutral, gibt jede Position fair wieder und macht die Schlagseite des Materials als **Befund** sichtbar — ohne selbst Partei zu ergreifen.
 
@@ -22,7 +23,9 @@ Die fachliche Logik steckt im Meta-Prompt (`meta-prompt-diskussionsanalyse.md`):
 - **Live-Streaming** der Analyse (SSE, manuell geparst) mit ruhigem In-place-Rendering.
 - **Rückfragen-Thread** mit vollem Kontext (Artikel + Kommentare + Analyse).
 - **Getunte Extraktoren** für Hacker News & YouTube, generischer Pfad (Readability) für alles andere (inkl. Reddit/X in v1).
-- **Token-Budget/Truncation**: Artikel zuerst, dann höchstbewertete Kommentare; Kürzung wird dem Modell offengelegt.
+- **Token-Budget/Truncation**: Bei großem Input werden Artikeltext und lange Kommentare gekürzt; Kommentare aus verschiedenen Threads bleiben vertreten. Erfasste und ausgewählte Anzahl bleiben getrennt sichtbar.
+- **Quellenbelege**: Kommentare tragen stabile IDs; sofern ein verlässlicher Direktlink existiert, ist die ID in der Analyse anklickbar. Der Quellenbereich zeigt die zugrunde liegenden Auszüge.
+- **Verlauf**: Analysen, Teilresultate, Rückfragen und tatsächliche Token-Nutzung werden lokal gespeichert. Ein erneutes Öffnen der Sidebar startet keine bezahlte Analyse.
 - **Optionen**: API-Key, Modell, Token-Caps, editierbarer System-Prompt (mit „Auf Default zurücksetzen"), Sprache, Theme.
 - **Lesefokus-Design**: eigenständige Typografie (Buch-Serife für die Analyse, humanistische Sans für die UI), Light/Dark via `prefers-color-scheme` + manuelles Theme.
 - **Fehlerbehandlung** mit klaren deutschen Meldungen (401/403/413/429/5xx/Refusal/Abbruch).
@@ -70,8 +73,8 @@ Optionen-Seite (Add-on verwalten → Einstellungen):
 | Einstellung | Default | Zweck |
 |---|---|---|
 | **API-Key** | – | Anthropic-Key, in `storage.local` |
-| **Modell** | `claude-opus-4-8` | Alternativen: `claude-sonnet-4-6`, `claude-haiku-4-5` |
-| **Max. Input-Tokens** | 150 000 | Kürzungs-Cap für den Seiteninhalt |
+| **Modell** | `claude-opus-5-5` | Aktuell: `claude-fable-5-1`, `claude-sonnet-5`, `claude-haiku-4-5`; ältere Modelle bleiben wählbar |
+| **Max. Input-Tokens** | 150 000 | Obergrenze für den gesamten API-Input einschließlich System-Prompt |
 | **Max. Output-Tokens** | 8 000 | Länge der Analyse (`max_tokens`) |
 | **System-Prompt** | gebündelter Meta-Prompt | editierbar, rücksetzbar |
 | **Ausgabesprache** | Deutsch | Hinweis ans Modell |
@@ -116,13 +119,13 @@ test/                          Vitest + Fixtures (HN/YouTube/generisch)
 
 ## Tests
 
-Test-getrieben (Vitest, jsdom). Abgedeckt: Extraktion (HN/YouTube/generisch gegen Fixtures), Prompt-Bau + Truncation, SSE-Parser (inkl. Chunk-Splits), Fehler-Mapping, Token-Schätzung, Storage, Render/Section-Split. `npm test` → aktuell 27 Tests grün.
+Vitest mit jsdom deckt Extraktion, Prompt-Auswahl, Kostenvorschau, Quellenlinks, kumulative Stream-Nutzung, SSE, Fehler, Storage und Rendering ab. Zusätzlich: `npx tsc --noEmit`, `npm run build`, `npm run lint:ext`.
 
 ## Status & Roadmap
 
 **v1 fertig**: Extraktion, Streaming-Analyse, Bias-Panel, Optionen, Fehlerpfade, Rückfragen-Thread.
 
-**Backlog**: Reddit-/X-Spezialextraktoren · robustere YouTube-Kommentar-Extraktion (Continuation/Scroll) · optionale `count_tokens`-Vorab-Anzeige · Input-Kosten in der Usage-Zeile · strukturierte Bias-Visualisierung · History · AMO-Signierung · Chrome-Port (`side_panel`).
+**Backlog**: Reddit-/X-Spezialextraktoren · strukturierte Bias-Visualisierung · AMO-Signierung · Chrome-Port (`side_panel`).
 
 ## Lizenz / Nutzung
 

@@ -1,6 +1,7 @@
 import type { Settings, StreamEvent, UiError } from "./types";
 import { mapHttpError } from "./errors";
 import { parseSSE } from "./sse";
+import { MODEL_CATALOG } from "./models";
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
 const COUNT_ENDPOINT = `${ENDPOINT}/count_tokens`;
@@ -40,7 +41,8 @@ function messagesBody(settings: Settings, messages: ChatMessage[]) {
     model: settings.model,
     system: settings.systemPrompt,
     messages,
-    thinking: { type: "adaptive" as const },
+    // Haiku 4.5 only supports manual extended thinking; adaptive returns HTTP 400.
+    ...(MODEL_CATALOG[settings.model].adaptiveThinking ? { thinking: { type: "adaptive" as const } } : {}),
   };
 }
 
@@ -80,8 +82,10 @@ export async function* streamAnalysis(args: StreamArgs): AsyncGenerator<StreamEv
         yield { type: "thinking", text: delta.thinking };
       }
     } else if (type === "message_start") {
-      const u = (ev as { message?: { usage?: { input_tokens?: number } } }).message?.usage;
-      if (u?.input_tokens != null) yield { type: "usage", inputTokens: u.input_tokens };
+      const u = (ev as { message?: { usage?: { input_tokens?: number; output_tokens?: number } } }).message?.usage;
+      if (u?.input_tokens != null || u?.output_tokens != null) {
+        yield { type: "usage", inputTokens: u.input_tokens, outputTokens: u.output_tokens };
+      }
     } else if (type === "message_delta") {
       const d = ev as { delta?: { stop_reason?: string }; usage?: { output_tokens?: number } };
       if (d.delta?.stop_reason) stopReason = d.delta.stop_reason;

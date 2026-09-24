@@ -1,10 +1,11 @@
 import type { ExtractionResult, UiError } from "../lib/types";
+import type { PreparedRequest } from "../lib/preview";
 
 export type State =
   | { name: "empty"; needsKey: boolean }
   | { name: "extracting" }
   | { name: "thinking"; extraction: ExtractionResult }
-  | { name: "confirm"; extraction: ExtractionResult; inputTokens: number } // count_tokens gate
+  | { name: "confirm"; preview: PreparedRequest }
   | { name: "result"; extraction: ExtractionResult } // streaming + done; the live
   // analysis text and Q&A thread are managed incrementally outside the store.
   | { name: "error"; error: UiError; extraction?: ExtractionResult };

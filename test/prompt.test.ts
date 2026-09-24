@@ -38,7 +38,7 @@ test("applyBudget keeps everything when under cap", () => {
   expect(out.comments).toHaveLength(2);
 });
 
-test("applyBudget keeps article + highest-scored comments, drops the rest, flags truncated", () => {
+test("applyBudget shortens long comments before dropping them and keeps capture count", () => {
   const many: ExtractionResult = {
     ...base,
     article: { text: "A".repeat(40) }, // ~10 tokens, always kept
@@ -48,10 +48,53 @@ test("applyBudget keeps article + highest-scored comments, drops the rest, flags
     ],
     stats: { commentCount: 2, charCount: 8040 },
   };
-  // cap fits article + overhead + exactly one big comment, not both
+  // Both threads fit after text is shortened.
   const out = applyBudget(many, 1300);
   expect(out.truncated).toBe(true);
+  expect(out.comments).toHaveLength(2);
+  expect(out.comments.map((c) => c.author)).toEqual(["low", "high"]); // source order retained
+  expect(out.comments[0].text.length).toBeLessThan(4000);
+  expect(out.stats.commentCount).toBe(2); // source capture count is never overwritten
+  expect(out.coverage).toMatchObject({ captured: 2, selected: 2, shortenedComments: 2 });
+});
+
+test("large discussions draw from separate threads, keep parents and original order", () => {
+  const comments = Array.from({ length: 20 }, (_, i) => ({
+    author: `root-${i}`, text: `thread ${i} ` + "x".repeat(4000), depth: 0, score: 20 - i,
+  }));
+  comments.splice(1, 0, { author: "reply", text: "answer " + "y".repeat(4000), depth: 1, score: 999 });
+  const out = applyBudget({ ...base, comments, stats: { commentCount: comments.length, charCount: 0 } }, 1800);
+  expect(out.comments.length).toBeLessThan(comments.length);
+  expect(out.comments.some((c) => c.author === "reply")).toBe(true);
+  expect(out.comments.some((c) => c.author === "root-0")).toBe(true);
+  expect(out.comments.map((c) => Number(c.id!.slice(1)))).toEqual(
+    [...out.comments.map((c) => Number(c.id!.slice(1)))].sort((a, b) => a - b),
+  );
+  expect(out.coverage?.captured).toBe(21);
+  expect(buildUserMessage(out)).toContain("Keine Mehrheits- oder Prozentbehauptungen");
+});
+
+test("long article yields space to comments and reports the cut", () => {
+  const out = applyBudget({
+    ...base,
+    article: { text: "A".repeat(30000) },
+    comments: [{ author: "voice", text: "B".repeat(1000), depth: 0 }],
+    stats: { commentCount: 1, charCount: 31000 },
+  }, 2000);
+  expect(out.coverage?.articleTruncated).toBe(true);
+  expect(out.article!.text.length).toBeLessThan(30000);
   expect(out.comments).toHaveLength(1);
-  expect(out.comments[0].author).toBe("high"); // highest score retained first
-  expect(out.stats.commentCount).toBe(1);
+  expect(out.coverage?.selected).toBe(1);
+});
+
+test("sampling gives distinct authors room even when one author has higher scores", () => {
+  const comments = Array.from({ length: 12 }, (_, i) => ({
+    author: i < 6 ? "repeat" : `unique-${i}`,
+    text: "x".repeat(4000), depth: 0, score: i < 6 ? 100 - i : 1,
+  }));
+  const out = applyBudget({ ...base, article: null, comments,
+    stats: { commentCount: comments.length, charCount: 48000 } }, 750);
+  expect(out.comments.length).toBeLessThan(comments.length);
+  expect(out.comments.some((c) => c.author === "repeat")).toBe(true);
+  expect(out.comments.some((c) => c.author?.startsWith("unique-"))).toBe(true);
 });

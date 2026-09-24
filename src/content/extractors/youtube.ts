@@ -106,7 +106,8 @@ function entityMap(data: any): Map<string, Comment> {
     const text = String(p?.properties?.content?.content ?? "").trim();
     const author = p?.author?.displayName || undefined;
     const likes = parseCount(p?.toolbar?.likeCountNotliked ?? p?.toolbar?.likeCountLiked);
-    map.set(key, { author, text, score: likes, depth: 0 });
+    const commentId = p?.properties?.commentId;
+    map.set(key, { author, text, score: likes, depth: 0, ...(commentId ? { url: `https://www.youtube.com/watch?lc=${encodeURIComponent(String(commentId))}` } : {}) });
   }
   return map;
 }
@@ -123,7 +124,7 @@ function fromLegacyRenderer(r: any, depth: number): Comment | null {
   if (!text) return null;
   const author = r?.authorText?.simpleText || undefined;
   const score = parseCount(r?.voteCount?.simpleText) ?? parseCount(r?.likeCount);
-  return { author, text, score, depth };
+  return { author, text, score, depth, ...(r.commentId ? { url: `https://www.youtube.com/watch?lc=${encodeURIComponent(String(r.commentId))}` } : {}) };
 }
 
 export function parseInnertubeComments(data: unknown): Comment[] {
@@ -242,7 +243,8 @@ function pickDomComment(n: Element | null, depth: number): Comment | null {
   if (!text) return null;
   const author = n.querySelector("#author-text")?.textContent?.trim() || undefined;
   const score = parseCount(n.querySelector("#vote-count-middle")?.textContent);
-  return { author, text, score, depth };
+  const permalink = n.querySelector<HTMLAnchorElement>('a[href*="lc="]')?.href;
+  return { author, text, score, depth, ...(permalink ? { url: permalink } : {}) };
 }
 
 /** Last resort: the __comments array used by the test fixture. */
@@ -270,6 +272,16 @@ export async function extractYouTube(doc: Document, url: string): Promise<Extrac
     if (data) comments = commentsFromData(data);
   }
 
+  const videoUrl = new URL(url);
+  const videoId = videoUrl.searchParams.get("v");
+  comments = comments.map((c) => {
+    if (!c.url || !videoId) return c;
+    const link = new URL(c.url, url);
+    const lc = link.searchParams.get("lc");
+    return lc ? { ...c, url: `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&lc=${encodeURIComponent(lc)}` } : c;
+  });
+  const countText = doc.querySelector("#count .count-text, ytd-comments-header-renderer #count")?.textContent;
+  const platformTotal = parseCount(countText);
   const charCount = description.length + comments.reduce((n, c) => n + c.text.length, 0);
   return {
     url,
@@ -277,7 +289,7 @@ export async function extractYouTube(doc: Document, url: string): Promise<Extrac
     siteType: "youtube",
     article: description ? { text: description } : null,
     comments,
-    stats: { commentCount: comments.length, charCount },
+    stats: { commentCount: comments.length, charCount, ...(platformTotal != null ? { platformTotal } : {}) },
     truncated: false,
   };
 }

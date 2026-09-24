@@ -6,6 +6,15 @@ export function mapHttpError(
   _errorType?: string,
 ): UiError {
   switch (status) {
+    case 400:
+    case 404:
+    case 422:
+      return {
+        code: "invalid_request",
+        message: "Modell oder Anfrage ungültig — Einstellungen prüfen.",
+        retryable: false,
+        openOptions: true,
+      };
     case 401:
       return {
         code: "auth",

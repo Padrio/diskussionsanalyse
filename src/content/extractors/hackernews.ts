@@ -21,7 +21,11 @@ export function extractHackerNews(doc: Document, url: string): ExtractionResult 
     const text = row.querySelector(".commtext")?.textContent?.replace(/\s+/g, " ").trim();
     if (!text) return; // collapsed / flagged
     const author = row.querySelector(".hnuser")?.textContent?.trim() || undefined;
-    comments.push({ author, text, depth: commentDepth(row) });
+    const id = row.id;
+    comments.push({
+      author, text, depth: commentDepth(row),
+      ...(id ? { url: `https://news.ycombinator.com/item?id=${encodeURIComponent(id)}` } : {}),
+    });
   });
 
   const charCount = postText.length + comments.reduce((n, c) => n + c.text.length, 0);

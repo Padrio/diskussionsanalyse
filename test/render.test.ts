@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { formatUsage, renderMarkdown, splitSections } from "../src/sidebar/render";
+import { formatUsage, renderMarkdown, renderSourcedMarkdown, splitSections } from "../src/sidebar/render";
 
 test("renders markdown and strips dangerous HTML", () => {
   const html = renderMarkdown("# Hi\n\n<img src=x onerror=alert(1)>**b**");
@@ -20,6 +20,14 @@ test("formatUsage shows input, output and combined cost", () => {
   expect(formatUsage(1234, 5678, "claude-opus-4-8")).toBe("1.2k In · 5.7k Out · ~$0.1481");
 });
 
+test.each([
+  ["claude-fable-5-1", "$0.0600"],
+  ["claude-opus-5-5", "$0.0240"],
+  ["claude-sonnet-5", "$0.0120"],
+])("formatUsage prices %s at current rates", (model, cost) => {
+  expect(formatUsage(1000, 1000, model)).toBe(`1.0k In · 1.0k Out · ~${cost}`);
+});
+
 test("formatUsage returns empty string when no tokens", () => {
   expect(formatUsage(0, 0, "claude-opus-4-8")).toBe("");
 });
@@ -28,4 +36,23 @@ test("formatUsage handles small counts and unknown model", () => {
   // haiku-4-5: $1/1M input, $5/1M output → 500/1e6 + 800*5/1e6 = 0.0045
   expect(formatUsage(500, 800, "claude-haiku-4-5")).toBe("500 In · 800 Out · ~$0.0045");
   expect(formatUsage(100, 0, "unknown-model")).toBe("100 In · 0 Out · ~$0.0000");
+});
+
+test("only known comment IDs with safe deep links become clickable", () => {
+  const html = renderSourcedMarkdown("Beleg [C1], unbekannt [C9], ohne Link [C2].", [
+    { id: "C1", text: "Originalkommentar", depth: 0, url: "https://news.ycombinator.com/item?id=42" },
+    { id: "C2", text: "Ohne Link", depth: 0 },
+  ]);
+  expect(html).toContain('href="https://news.ycombinator.com/item?id=42"');
+  expect(html).toContain("Originalkommentar");
+  expect(html).toContain("[C9]");
+  expect(html).toContain("[C2]");
+  expect(html.match(/<a /g)).toHaveLength(1);
+});
+
+test("source renderer rejects script links", () => {
+  const html = renderSourcedMarkdown("[C1]", [
+    { id: "C1", text: "x", depth: 0, url: "javascript:alert(1)" },
+  ]);
+  expect(html).not.toContain("<a ");
 });

@@ -18,20 +18,20 @@ npm run start:ff   # web-ext run -s dist
 
 ## Stack
 
-TypeScript (strict, `esModuleInterop`) · Vite + `vite-plugin-web-extension` (`browser: "firefox"`) · `web-ext` · `webextension-polyfill` · `@mozilla/readability` · `turndown` · `marked` · `dompurify` · Vitest (jsdom). Anthropic via `fetch` + manuelles SSE (kein SDK). Default-Modell `claude-opus-4-8`.
+TypeScript (strict, `esModuleInterop`) · Vite + `vite-plugin-web-extension` (`browser: "firefox"`) · `web-ext` · `webextension-polyfill` · `@mozilla/readability` · `turndown` · `marked` · `dompurify` · Vitest (jsdom). Anthropic via `fetch` + manuelles SSE (kein SDK). Default-Modell `claude-opus-5-5`.
 
 ## Architektur-Invarianten (nicht brechen)
 
-- **Sidebar besitzt den API-Call.** Es gibt **einen** Pfad zum Request-Bau (`sidebar.ts`): `system = settings.systemPrompt`, `model = settings.model`, `max_tokens = settings.maxOutputTokens`, `thinking:{type:"adaptive"}`, `stream:true`. Rückfragen nutzen denselben `streamAnalysis` mit `messages`-Array. Keinen zweiten Request-Pfad einführen (Cross-Pfad-Konsistenz).
+- **Sidebar besitzt den API-Call.** Es gibt **einen** Pfad zum Request-Bau (`lib/anthropic.ts`): `system = settings.systemPrompt`, `model = settings.model`, `max_tokens = settings.maxOutputTokens`, `stream:true`. Adaptive Thinking gilt für alle auswählbaren Modelle außer Haiku 4.5; dort wird `thinking` weggelassen. `countTokens` teilt denselben Body-Bau. Rückfragen nutzen denselben `streamAnalysis` mit `messages`-Array. Keinen zweiten Request-Pfad einführen (Cross-Pfad-Konsistenz).
 - **Erstanalyse nur über echte Geste** (Toolbar-Aktion / Kontextmenü / `Strg+Shift+Y`) — die gewährt `activeTab`. Ein Klick *in* der Sidebar gewährt es nicht. „Erneut"/Rückfragen laufen auf gecachtem Ergebnis.
 - **`sidebarAction.open()` muss die ERSTE Anweisung im Gesten-Handler sein**, ohne vorheriges `await` — sonst wirft Firefox „only from a user input handler". Siehe `background/index.ts` → `trigger()` (open synchron, dann `void analyze()`).
 - **Zwei Toolbar-Buttons:** `sidebar_action` erzeugt einen Sidebar-Umschalter, `action` den Analyse-Trigger. Nur `action.onClicked` / `menus` / `commands` lösen die Analyse aus.
 - **Handoff Background→Sidebar = Runtime-Messages (primär) + `storage.session` (Cold-Open-Read).** `storage.onChanged` für die **`session`**-Area feuert im Sidebar-Kontext **nicht zuverlässig** — nicht als Live-Kanal verwenden. `storage.onChanged` für **`local`** ist zuverlässig (für Auto-Start beim Key-Speichern genutzt).
 - **Injektion:** Extraktor wird als **klassisches IIFE** gebündelt (`src/content/extract.ts` in `additionalInputs`), per `executeScript({files})` injiziert (setzt `globalThis.__diskussionsanalyseExtract`), dann per `executeScript({func})` aufgerufen — `func`-Rückgabe ist der zuverlässige Kanal. Build emittiert nach `dist/src/content/extract.js`; Background injiziert exakt `"src/content/extract.js"`.
 
-## Anthropic-API-Regeln (Opus 4.8)
+## Anthropic-API-Regeln
 
-- `thinking:{type:"adaptive"}`. **Kein** `budget_tokens`, **kein** `temperature`/`top_p`/`top_k`, **kein** Assistant-Prefill — alle werfen 400.
+- Für Fable 5.1, Opus 5.5, Sonnet 5 und die älteren Opus-/Sonnet-Modelle: `thinking:{type:"adaptive"}`. Haiku 4.5 unterstützt das nicht; `thinking` für Haiku weglassen. **Kein** `budget_tokens`, **kein** `temperature`/`top_p`/`top_k`, **kein** Assistant-Prefill bei den neueren Modellen.
 - Header inkl. `anthropic-dangerous-direct-browser-access: true` (Browser-CORS), `anthropic-version: 2023-06-01`.
 - `stop_reason === "refusal"` **vor** dem Content prüfen.
 - Bei Modell-/Param-Fragen die `claude-api`-Skill konsultieren, nicht aus dem Gedächtnis antworten. Modell-IDs exakt aus dem Katalog.
@@ -67,4 +67,4 @@ TypeScript (strict, `esModuleInterop`) · Vite + `vite-plugin-web-extension` (`b
 
 ## Backlog
 
-Reddit/X-Extraktoren · robustere YouTube-Kommentare (Continuation/Scroll) · `count_tokens`-Vorabanzeige (muss Request-Form spiegeln) · Input-Kosten in Usage-Zeile · Bias-Visualisierung · History · AMO-Signierung · Chrome-Port (`side_panel`).
+Reddit/X-Extraktoren · Bias-Visualisierung · AMO-Signierung · Chrome-Port (`side_panel`).
